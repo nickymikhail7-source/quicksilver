@@ -375,6 +375,130 @@
             transform: scale(1.05);
         }
 
+        /* Typing Indicator */
+        .typing-indicator {
+            display: flex;
+            align-self: flex-start;
+            gap: 5px;
+            padding: 15px 20px;
+            background-color: var(--input-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            border-bottom-left-radius: 5px;
+            max-width: 80px;
+        }
+
+        .typing-dot {
+            width: 10px;
+            height: 10px;
+            background-color: #888;
+            border-radius: 50%;
+            animation: bounce 1.4s infinite ease-in-out both;
+        }
+
+        .typing-dot:nth-child(1) {
+            animation-delay: -0.32s;
+        }
+
+        .typing-dot:nth-child(2) {
+            animation-delay: -0.16s;
+        }
+
+        @keyframes bounce {
+
+            0%,
+            80%,
+            100% {
+                transform: scale(0);
+            }
+
+            40% {
+                transform: scale(1);
+            }
+        }
+
+        /* Stock Card */
+        .stock-card {
+            background: linear-gradient(145deg, #1e1e1e, #252525);
+            border: 1px solid var(--border-color);
+            border-radius: 15px;
+            padding: 20px;
+            width: 100%;
+            max-width: 300px;
+            margin-top: 10px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+            align-self: flex-start;
+            /* Align with AI messages */
+            animation: fadeIn 0.3s ease;
+        }
+
+        .stock-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .stock-symbol {
+            font-weight: 700;
+            font-size: 1.2rem;
+            color: #fff;
+        }
+
+        .stock-name {
+            font-size: 0.9rem;
+            color: #888;
+        }
+
+        .stock-price {
+            font-size: 2rem;
+            font-weight: 800;
+            color: #fff;
+            margin-bottom: 5px;
+        }
+
+        .stock-change {
+            font-size: 1rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .stock-change.positive {
+            color: #00ff88;
+        }
+
+        .stock-change.negative {
+            color: #ff4d4d;
+        }
+
+        .stock-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: #888;
+            margin-bottom: 3px;
+        }
+
+        .stat-value {
+            font-size: 0.95rem;
+            color: #ddd;
+            font-weight: 600;
+        }
+
         @keyframes fadeIn {
             from {
                 opacity: 0;
@@ -610,12 +734,18 @@
                 // Simulate network delay
                 setTimeout(() => {
                     hideTypingIndicator();
-
+                    
                     if (profilingStep >= 0) {
                         handleProfilingInput(message);
                     } else {
                         const response = generateResponse(message);
-                        addMessage(response, 'ai');
+                        // Check if response is an object (stock card) or string
+                        if (typeof response === 'object') {
+                            addMessage(response.text, 'ai');
+                            addStockCard(response.data);
+                        } else {
+                            addMessage(response, 'ai');
+                        }
                     }
                 }, 1500);
             }
@@ -623,7 +753,7 @@
 
         function generateResponse(message) {
             const lowerMsg = message.toLowerCase();
-
+            
             // Check if user wants to start profiling
             if (lowerMsg.includes('profile') || lowerMsg.includes('analyze me')) {
                 startProfiling();
@@ -635,9 +765,41 @@
                 startProfiling();
                 return "To give you the best advice, I need to know your investor profile first. Let's start: What is your primary investment goal? (Growth, Income, or Preservation)";
             }
+            
+            // Stock Cards Logic
+            if (lowerMsg.includes('apple') || lowerMsg.includes('aapl')) {
+                return {
+                    text: "Here is the current market data for Apple Inc.",
+                    data: { symbol: 'AAPL', name: 'Apple Inc.', price: '175.43', change: '+1.25%', isPositive: true, mktCap: '2.7T', pe: '28.5' }
+                };
+            }
+            if (lowerMsg.includes('tesla') || lowerMsg.includes('tsla')) {
+                return {
+                    text: "Here is the latest on Tesla, Inc.",
+                    data: { symbol: 'TSLA', name: 'Tesla, Inc.', price: '240.50', change: '-0.85%', isPositive: false, mktCap: '760B', pe: '68.2' }
+                };
+            }
+            if (lowerMsg.includes('google') || lowerMsg.includes('googl')) {
+                return {
+                    text: "Pulling up data for Alphabet Inc.",
+                    data: { symbol: 'GOOGL', name: 'Alphabet Inc.', price: '135.20', change: '+0.55%', isPositive: true, mktCap: '1.7T', pe: '25.1' }
+                };
+            }
+            if (lowerMsg.includes('amazon') || lowerMsg.includes('amzn')) {
+                return {
+                    text: "Here's how Amazon is performing.",
+                    data: { symbol: 'AMZN', name: 'Amazon.com', price: '130.00', change: '+0.92%', isPositive: true, mktCap: '1.3T', pe: '105.4' }
+                };
+            }
+            if (lowerMsg.includes('microsoft') || lowerMsg.includes('msft')) {
+                return {
+                    text: "Microsoft Corporation market data:",
+                    data: { symbol: 'MSFT', name: 'Microsoft Corp.', price: '330.00', change: '+1.50%', isPositive: true, mktCap: '2.5T', pe: '32.4' }
+                };
+            }
 
             if (lowerMsg.includes('stock') || lowerMsg.includes('price')) {
-                return "I can track real-time stock prices for you. Which company are you interested in? (Real-time data coming in Phase 6)";
+                return "I can track real-time stock prices for you. Try asking about Apple, Tesla, Google, Amazon, or Microsoft.";
             }
             if (lowerMsg.includes('market') || lowerMsg.includes('trend')) {
                 return "The market is currently showing mixed signals. Tech stocks are up, while energy is seeing a slight correction. It's a good time to diversify.";
@@ -652,8 +814,38 @@
             if (lowerMsg.includes('hello') || lowerMsg.includes('hi')) {
                 return "Hello! I'm ready to help you optimize your portfolio. What's on your mind today?";
             }
-
+            
             return "I understand you're interested in investments. Could you be more specific? You can ask about stock prices, market trends, or investment advice.";
+        }
+
+        function addStockCard(data) {
+            const history = document.getElementById('chat-history');
+            const cardDiv = document.createElement('div');
+            cardDiv.className = 'stock-card';
+            cardDiv.innerHTML = `
+                <div class="stock-header">
+                    <div>
+                        <div class="stock-symbol">${data.symbol}</div>
+                        <div class="stock-name">${data.name}</div>
+                    </div>
+                </div>
+                <div class="stock-price">$${data.price}</div>
+                <div class="stock-change ${data.isPositive ? 'positive' : 'negative'}">
+                    ${data.isPositive ? '▲' : '▼'} ${data.change}
+                </div>
+                <div class="stock-stats">
+                    <div class="stat-item">
+                        <span class="stat-label">Mkt Cap</span>
+                        <span class="stat-value">${data.mktCap}</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">P/E Ratio</span>
+                        <span class="stat-value">${data.pe}</span>
+                    </div>
+                </div>
+            `;
+            history.appendChild(cardDiv);
+            history.scrollTop = history.scrollHeight;
         }
 
         function startProfiling() {
