@@ -30,34 +30,25 @@ class handler(BaseHTTPRequestHandler):
             
             # Class for price: YMlKec fxKbKc
             price_div = soup.find('div', class_='YMlKec fxKbKc')
-            price = price_div.text.strip().replace('₹', '').replace('$', '').replace(',', '') if price_div else "N/A"
+            # Keep the currency symbol (e.g. ₹ or $)
+            price = price_div.text.strip() if price_div else "N/A"
             
             # Class for name: zzDege
             name_div = soup.find('div', class_='zzDege')
             name = name_div.text.strip() if name_div else symbol
 
-            # Class for change: P2Luy Ez2Ioe (positive) or P2Luy Ebnabc (negative) - simplified selector
-            # Actually, let's look for the percentage change specifically
-            # It's usually in a span/div near the price.
-            # Let's try a more robust way: finding the element with aria-label containing "Up" or "Down"
-            
+            # Class for change: P2Luy Ez2Ioe (positive) or P2Luy Ebnabc (negative)
             change = "0.00%"
             is_positive = True
             
-            # Fallback change logic (simplified for reliability)
-            # We can try to find the percentage text directly if we can identify a unique class
-            # Based on inspection: "JwB6zf" seems to be the percentage change class often
+            # Fallback change logic
             change_div = soup.find('div', class_='JwB6zf')
             if change_div:
                 change = change_div.text.strip()
                 is_positive = '+' in change or 'Up' in str(change_div)
             
-            # Clean up price
-            try:
-                price_float = float(price)
-                price = f"{price_float:,.2f}"
-            except:
-                pass
+            # We don't need to re-format the price as float because we want to keep the currency symbol
+            # Google Finance usually formats it well (e.g. "₹1,234.56")
 
             data = {
                 'symbol': symbol,
