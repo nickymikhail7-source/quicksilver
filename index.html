@@ -789,12 +789,22 @@
                     }
                  }
             } else {
-                // Fallback: check for known tech giants if no clear pattern
+                // Fallback: check for known companies if no clear pattern
                 const stockMap = {
+                    // US Tech Giants
                     'apple': 'AAPL', 'tesla': 'TSLA', 'google': 'GOOGL', 'alphabet': 'GOOGL', 
                     'amazon': 'AMZN', 'microsoft': 'MSFT', 'meta': 'META', 'facebook': 'META',
                     'netflix': 'NFLX', 'nvidia': 'NVDA',
-                    'reliance': 'RELIANCE', 'tata': 'TCS', 'infosys': 'INFY', 'hdfc': 'HDFCBANK'
+                    // Indian Companies
+                    'reliance': 'RELIANCE', 'tata': 'TCS', 'infosys': 'INFY', 'hdfc': 'HDFCBANK',
+                    'airtel': 'BHARTIARTL', 'bharti': 'BHARTIARTL',
+                    'bajaj': 'BAJAJ-AUTO', 'bajaj auto': 'BAJAJ-AUTO',
+                    'wipro': 'WIPRO', 'itc': 'ITC', 'adani': 'ADANI',
+                    'sbi': 'SBIN', 'icici': 'ICICIBANK', 'kotak': 'KOTAKBANK',
+                    'tata motors': 'TATAMOTORS', 'tata motor': 'TATAMOTORS',
+                    'maruti': 'MARUTI', 'hero': 'HEROMOTOCO',
+                    'asian paints': 'ASIANPAINT', 'titan': 'TITAN',
+                    'GROWW': 'GROWW', 'groww': 'GROWW'
                 };
                 for (const [name, sym] of Object.entries(stockMap)) {
                     if (lowerMsg.includes(name)) {
