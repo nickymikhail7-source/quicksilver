@@ -563,7 +563,7 @@
                 document.getElementById('dashboard-btn').style.display = 'flex';
                 document.getElementById('user-menu').style.display = 'flex';
                 document.getElementById('user-name-display').textContent = user.name;
-                
+
                 // If we are already in "dashboard mode", ensure chat is visible
                 if (localStorage.getItem('quicksilver_view') === 'chat') {
                     showChatInterface();
@@ -597,15 +597,60 @@
         function sendMessage() {
             const input = document.getElementById('chat-input');
             const message = input.value.trim();
-            
+
             if (message) {
                 addMessage(message, 'user');
                 input.value = '';
-                
-                // Mock AI response for now
+
+                showTypingIndicator();
+
+                // Simulate network delay
                 setTimeout(() => {
-                    addMessage("I'm processing your request... (AI integration coming in Phase 3)", 'ai');
-                }, 1000);
+                    hideTypingIndicator();
+                    const response = generateResponse(message);
+                    addMessage(response, 'ai');
+                }, 1500);
+            }
+        }
+
+        function generateResponse(message) {
+            const lowerMsg = message.toLowerCase();
+
+            if (lowerMsg.includes('stock') || lowerMsg.includes('price')) {
+                return "I can track real-time stock prices for you. Which company are you interested in? (Real-time data coming in Phase 6)";
+            }
+            if (lowerMsg.includes('market') || lowerMsg.includes('trend')) {
+                return "The market is currently showing mixed signals. Tech stocks are up, while energy is seeing a slight correction. It's a good time to diversify.";
+            }
+            if (lowerMsg.includes('advice') || lowerMsg.includes('invest') || lowerMsg.includes('buy')) {
+                return "As an AI, I suggest focusing on long-term growth. Consider a balanced portfolio of ETFs and blue-chip stocks. Would you like me to analyze your risk profile? (Phase 4)";
+            }
+            if (lowerMsg.includes('hello') || lowerMsg.includes('hi')) {
+                return "Hello! I'm ready to help you optimize your portfolio. What's on your mind today?";
+            }
+
+            return "I understand you're interested in investments. Could you be more specific? You can ask about stock prices, market trends, or investment advice.";
+        }
+
+        function showTypingIndicator() {
+            const history = document.getElementById('chat-history');
+            const indicator = document.createElement('div');
+            indicator.className = 'typing-indicator';
+            indicator.id = 'typing-indicator';
+            indicator.innerHTML = `
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+            `;
+            history.appendChild(indicator);
+            indicator.style.display = 'flex';
+            history.scrollTop = history.scrollHeight;
+        }
+
+        function hideTypingIndicator() {
+            const indicator = document.getElementById('typing-indicator');
+            if (indicator) {
+                indicator.remove();
             }
         }
 
