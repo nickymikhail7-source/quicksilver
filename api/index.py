@@ -20,7 +20,8 @@ class handler(BaseHTTPRequestHandler):
             if symbol in ['RELIANCE', 'TCS', 'INFY', 'HDFCBANK']:
                 symbol = f"{symbol}:NSE"
             else:
-                symbol = f"{symbol}:NASDAQ"
+                # Use EXCHANGE:SYMBOL format which is safer for Google Finance
+                symbol = f"NASDAQ:{symbol}"
 
         url = f"https://www.google.com/finance/quote/{symbol}"
         
@@ -28,8 +29,12 @@ class handler(BaseHTTPRequestHandler):
             response = requests.get(url)
             soup = BeautifulSoup(response.text, 'html.parser')
             
-            # Class for price: YMlKec fxKbKc
+            # Class for price: YMlKec (common for both US and India)
+            # Try specific first, then general
             price_div = soup.find('div', class_='YMlKec fxKbKc')
+            if not price_div:
+                price_div = soup.find('div', class_='YMlKec')
+            
             # Keep the currency symbol (e.g. ₹ or $)
             price = price_div.text.strip() if price_div else "N/A"
             
