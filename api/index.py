@@ -51,8 +51,22 @@ class handler(BaseHTTPRequestHandler):
                     # For Indian stocks, use 2nd occurrence (first is usually correct)
                     price = price_candidates[1] if len(price_candidates) > 1 else price_candidates[0]
                 else:
-                    # For US stocks, use last occurrence to skip indices
-                    price = price_candidates[-1]
+                    # For US stocks, filter by price range to avoid indices/micro-caps
+                    # Major stocks are typically $50-$500
+                    valid_prices = []
+                    for p in price_candidates:
+                        try:
+                            # Extract numeric value
+                            numeric = p.replace('$', '').replace(',', '').strip()
+                            val = float(numeric)
+                            # Filter: skip indices (>10k) and micro-caps (<$50)
+                            if 50 <= val <= 10000:
+                                valid_prices.append(p)
+                        except:
+                            pass
+                    
+                    # Use first valid price, or fallback to last candidate
+                    price = valid_prices[0] if valid_prices else price_candidates[-1]
             
             # Fallback: if no currency symbol found, take the first one
             if price == "N/A" and price_divs:
