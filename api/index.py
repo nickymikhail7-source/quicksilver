@@ -51,8 +51,11 @@ class handler(BaseHTTPRequestHandler):
         for exchange in exchanges:
             full_symbol = f"{symbol}:{exchange}"
             result = self.fetch_stock_data(full_symbol)
-            if result and result.get('price') != 'N/A':
-                # Valid stock found on this exchange
+            # Valid stock found if:
+            # 1. Result exists
+            # 2. Price is not N/A
+            # 3. Name is not equal to symbol (if name == symbol, stock not found on that exchange)
+            if result and result.get('price') != 'N/A' and result.get('name') != full_symbol:
                 return result
         return None
 
