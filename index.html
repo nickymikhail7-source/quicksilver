@@ -788,8 +788,13 @@
                         break;
                     }
                  }
-            } else {
-                // Fallback: check for known companies if no clear pattern
+            }
+            
+            if (query) {
+                query = query.replace(/[?.!]/g, '').trim();
+                
+                // Translate company names to symbols using stockMap
+                const queryLower = query.toLowerCase();
                 const stockMap = {
                     // US Tech Giants
                     'apple': 'AAPL', 'tesla': 'TSLA', 'google': 'GOOGL', 'alphabet': 'GOOGL', 
@@ -800,23 +805,19 @@
                     'airtel': 'BHARTIARTL', 'bharti': 'BHARTIARTL',
                     'bajaj': 'BAJAJ-AUTO', 'bajaj auto': 'BAJAJ-AUTO',
                     'wipro': 'WIPRO', 'itc': 'ITC', 'adani': 'ADANI',
-                    'sbi': 'SBIN', 'icici': 'ICICIBANK', 'kotak': 'KOTAKBANK',
+                   'sbi': 'SBIN', 'icici': 'ICICIBANK', 'kotak': 'KOTAKBANK',
                     'tata motors': 'TATAMOTORS', 'tata motor': 'TATAMOTORS',
                     'maruti': 'MARUTI', 'hero': 'HEROMOTOCO',
                     'asian paints': 'ASIANPAINT', 'titan': 'TITAN',
-                    'GROWW': 'GROWW', 'groww': 'GROWW'
+                    'groww': 'GROWW'
                 };
-                for (const [name, sym] of Object.entries(stockMap)) {
-                    if (lowerMsg.includes(name)) {
-                        query = sym; 
-                        break;
-                    }
+                
+                // Check if query matches a company name in the map
+                if (stockMap[queryLower]) {
+                    query = stockMap[queryLower];
                 }
             }
-            
-            if (query) {
-                query = query.replace(/[?.!]/g, '');
-            }
+
 
             if (query && (lowerMsg.includes('price') || lowerMsg.includes('stock') || lowerMsg.includes('how is'))) {
                 try {
