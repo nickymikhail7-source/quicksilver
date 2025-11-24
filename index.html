@@ -594,6 +594,9 @@
             }
         }
 
+        let profilingStep = -1; // -1: not profiling, 0-2: questions
+        let userAnswers = [];
+
         function sendMessage() {
             const input = document.getElementById('chat-input');
             const message = input.value.trim();
@@ -607,14 +610,31 @@
                 // Simulate network delay
                 setTimeout(() => {
                     hideTypingIndicator();
-                    const response = generateResponse(message);
-                    addMessage(response, 'ai');
+
+                    if (profilingStep >= 0) {
+                        handleProfilingInput(message);
+                    } else {
+                        const response = generateResponse(message);
+                        addMessage(response, 'ai');
+                    }
                 }, 1500);
             }
         }
 
         function generateResponse(message) {
             const lowerMsg = message.toLowerCase();
+
+            // Check if user wants to start profiling
+            if (lowerMsg.includes('profile') || lowerMsg.includes('analyze me')) {
+                startProfiling();
+                return "Let's determine your investor profile. I'll ask you 3 quick questions. First: What is your primary investment goal? (Growth, Income, or Preservation)";
+            }
+
+            // Check if user asks for advice but has no profile
+            if ((lowerMsg.includes('advice') || lowerMsg.includes('invest')) && !localStorage.getItem('quicksilver_profile')) {
+                startProfiling();
+                return "To give you the best advice, I need to know your investor profile first. Let's start: What is your primary investment goal? (Growth, Income, or Preservation)";
+            }
 
             if (lowerMsg.includes('stock') || lowerMsg.includes('price')) {
                 return "I can track real-time stock prices for you. Which company are you interested in? (Real-time data coming in Phase 6)";
@@ -623,13 +643,58 @@
                 return "The market is currently showing mixed signals. Tech stocks are up, while energy is seeing a slight correction. It's a good time to diversify.";
             }
             if (lowerMsg.includes('advice') || lowerMsg.includes('invest') || lowerMsg.includes('buy')) {
-                return "As an AI, I suggest focusing on long-term growth. Consider a balanced portfolio of ETFs and blue-chip stocks. Would you like me to analyze your risk profile? (Phase 4)";
+                const profile = localStorage.getItem('quicksilver_profile');
+                if (profile) {
+                    return `Based on your **${profile}** profile, I recommend a diversified portfolio aligned with your risk tolerance. Consider adding some index funds to your core holdings.`;
+                }
+                return "As an AI, I suggest focusing on long-term growth. Consider a balanced portfolio of ETFs and blue-chip stocks.";
             }
             if (lowerMsg.includes('hello') || lowerMsg.includes('hi')) {
                 return "Hello! I'm ready to help you optimize your portfolio. What's on your mind today?";
             }
 
             return "I understand you're interested in investments. Could you be more specific? You can ask about stock prices, market trends, or investment advice.";
+        }
+
+        function startProfiling() {
+            profilingStep = 0;
+            userAnswers = [];
+        }
+
+        function handleProfilingInput(message) {
+            userAnswers.push(message);
+
+            if (profilingStep === 0) {
+                profilingStep++;
+                addMessage("Got it. Second question: What is your time horizon? (Short term, Medium term, or Long term)", 'ai');
+            } else if (profilingStep === 1) {
+                profilingStep++;
+                addMessage("Understood. Last question: How would you describe your risk tolerance? (Low, Medium, or High)", 'ai');
+            } else if (profilingStep === 2) {
+                profilingStep = -1; // End profiling
+                const profile = calculateProfile();
+                localStorage.setItem('quicksilver_profile', profile);
+                addMessage(`Thank you. Based on your answers, I've identified your profile as **${profile}**. I will tailor my future advice to this profile.`, 'ai');
+            }
+        }
+
+        function calculateProfile() {
+            // Simple heuristic
+            const answers = userAnswers.join(' ').toLowerCase();
+            let score = 0;
+
+            if (answers.includes('growth')) score += 2;
+            if (answers.includes('income')) score += 1;
+
+            if (answers.includes('long')) score += 2;
+            if (answers.includes('medium')) score += 1;
+
+            if (answers.includes('high')) score += 2;
+            if (answers.includes('medium')) score += 1;
+
+            if (score >= 5) return 'Aggressive';
+            if (score >= 3) return 'Balanced';
+            return 'Conservative';
         }
 
         function showTypingIndicator() {
