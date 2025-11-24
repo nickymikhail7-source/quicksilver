@@ -20,8 +20,8 @@ class handler(BaseHTTPRequestHandler):
             if symbol in ['RELIANCE', 'TCS', 'INFY', 'HDFCBANK']:
                 symbol = f"{symbol}:NSE"
             else:
-                # Use EXCHANGE:SYMBOL format which is safer for Google Finance
-                symbol = f"NASDAQ:{symbol}"
+                # Revert to SYMBOL:EXCHANGE format as NASDAQ:SYMBOL redirects to index
+                symbol = f"{symbol}:NASDAQ"
 
         url = f"https://www.google.com/finance/quote/{symbol}"
         
