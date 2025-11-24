@@ -33,18 +33,28 @@ class handler(BaseHTTPRequestHandler):
             soup = BeautifulSoup(response.text, 'html.parser')
             
             # Class for price: YMlKec (common for both US and India)
-            # Find all matches and pick the one with a currency symbol to avoid indices
+            # Find all matches and pick the LAST one with a currency symbol
+            # (Indices appear first, actual stock price appears later)
             price_divs = soup.find_all('div', class_='YMlKec')
             price = "N/A"
+            price_candidates = []
             
             for div in price_divs:
                 text = div.text.strip()
-                # Check for common currency symbols or if it looks like a price (not just a number)
+                # Collect all elements with currency symbols
                 if '$' in text or '₹' in text or '€' in text or '£' in text:
-                    price = text
-                    break
+                    price_candidates.append(text)
             
-            # Fallback: if no currency symbol found, take the first one (might be an index, but better than nothing)
+            # Use the LAST candidate (stock price comes after indices/related stocks)
+            if price_candidates:
+                if ':NSE' in symbol or ':BSE' in symbol:
+                    # For Indian stocks, use 2nd occurrence (first is usually correct)
+                    price = price_candidates[1] if len(price_candidates) > 1 else price_candidates[0]
+                else:
+                    # For US stocks, use last occurrence to skip indices
+                    price = price_candidates[-1]
+            
+            # Fallback: if no currency symbol found, take the first one
             if price == "N/A" and price_divs:
                 price = price_divs[0].text.strip()
             
