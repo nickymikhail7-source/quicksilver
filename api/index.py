@@ -30,13 +30,20 @@ class handler(BaseHTTPRequestHandler):
             soup = BeautifulSoup(response.text, 'html.parser')
             
             # Class for price: YMlKec (common for both US and India)
-            # Try specific first, then general
-            price_div = soup.find('div', class_='YMlKec fxKbKc')
-            if not price_div:
-                price_div = soup.find('div', class_='YMlKec')
+            # Find all matches and pick the one with a currency symbol to avoid indices
+            price_divs = soup.find_all('div', class_='YMlKec')
+            price = "N/A"
             
-            # Keep the currency symbol (e.g. ₹ or $)
-            price = price_div.text.strip() if price_div else "N/A"
+            for div in price_divs:
+                text = div.text.strip()
+                # Check for common currency symbols or if it looks like a price (not just a number)
+                if '$' in text or '₹' in text or '€' in text or '£' in text:
+                    price = text
+                    break
+            
+            # Fallback: if no currency symbol found, take the first one (might be an index, but better than nothing)
+            if price == "N/A" and price_divs:
+                price = price_divs[0].text.strip()
             
             # Class for name: zzDege
             name_div = soup.find('div', class_='zzDege')
