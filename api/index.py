@@ -15,21 +15,48 @@ class handler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps({'error': 'Symbol is required'}).encode('utf-8'))
             return
 
-        # Default to NASDAQ if no exchange specified for common tech stocks
+        # Dynamic exchange detection - no hardcoding!
+        # If user didn't specify exchange (e.g. "AAPL" vs "AAPL:NASDAQ")
         if ':' not in symbol:
             symbol_upper = symbol.upper()
-            # Common Indian stocks - default to NSE
-            indian_stocks = [
-                'RELIANCE', 'TCS', 'INFY', 'HDFCBANK', 'GROWW', 
-                'TATAMOTORS', 'WIPRO', 'BAJAJ', 'ADANI', 'ITC',
-                'SBIN', 'ICICIBANK', 'BHARTIARTL', 'HINDUNILVR', 'KOTAKBANK'
-            ]
-            if symbol_upper in indian_stocks:
-                symbol = f"{symbol_upper}:NSE"
+            # Try exchanges in order: NSE -> BSE -> NASDAQ
+            result = self.try_exchanges(symbol_upper)
+            if result:
+                self.send_response(200)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps(result).encode('utf-8'))
             else:
-                # Revert to SYMBOL:EXCHANGE format as NASDAQ:SYMBOL redirects to index
-                symbol = f"{symbol_upper}:NASDAQ"
+                self.send_response(404)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({'error': f'Stock {symbol} not found on NSE, BSE, or NASDAQ'}).encode('utf-8'))
+        else:
+            # User specified exchange explicitly (e.g. "RELIANCE:NSE")
+            result = self.fetch_stock_data(symbol)
+            if result:
+                self.send_response(200)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps(result).encode('utf-8'))
+            else:
+                self.send_response(404)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({'error': f'Stock {symbol} not found'}).encode('utf-8'))
 
+    def try_exchanges(self, symbol):
+        """Try to find stock on NSE, BSE, then NASDAQ in that order"""
+        exchanges = ['NSE', 'BSE', 'NASDAQ']
+        for exchange in exchanges:
+            full_symbol = f"{symbol}:{exchange}"
+            result = self.fetch_stock_data(full_symbol)
+            if result and result.get('price') != 'N/A':
+                # Valid stock found on this exchange
+                return result
+        return None
+
+    def fetch_stock_data(self, symbol):
         url = f"https://www.google.com/finance/quote/{symbol}"
         
         try:
@@ -94,25 +121,17 @@ class handler(BaseHTTPRequestHandler):
                 change = change_div.text.strip()
                 is_positive = '+' in change or 'Up' in str(change_div)
             
-            # We don't need to re-format the price as float because we want to keep the currency symbol
-            # Google Finance usually formats it well (e.g. "₹1,234.56")
-
-            data = {
+            # Return data dict instead of sending response
+            return {
                 'symbol': symbol,
                 'name': name,
                 'price': price,
                 'change': change,
                 'isPositive': is_positive,
-                'mktCap': 'N/A', # Harder to scrape reliably without more complex logic
+                'mktCap': 'N/A',
                 'pe': 'N/A'
             }
 
-            self.send_response(200)
-            self.send_header('Content-type', 'application/json')
-            self.end_headers()
-            self.wfile.write(json.dumps(data).encode('utf-8'))
-
         except Exception as e:
-            self.send_response(500)
-            self.end_headers()
-            self.wfile.write(json.dumps({'error': str(e)}).encode('utf-8'))
+            # Return None on error
+            return None
