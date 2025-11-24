@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuickSilver - AI Investment Intelligence</title>
+    <style>
+        :root {
+            --bg-color: #0a0a0a;
+            --text-color: #e0e0e0;
+            --accent-color: #0066FF;
+            --accent-hover: #0052cc;
+            --modal-bg: #1a1a1a;
+            --input-bg: #2a2a2a;
+            --border-color: #333;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        /* Header */
+        header {
+            padding: 20px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: fixed;
+            width: 100%;
+            top: 0;
+            background: rgba(10, 10, 10, 0.8);
+            backdrop-filter: blur(10px);
+            z-index: 100;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #fff;
+            letter-spacing: 1px;
+            background: linear-gradient(45deg, #fff, #a0a0a0);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* Hero Section */
+        .hero {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 0 20px;
+            background: radial-gradient(circle at center, #1a1a1a 0%, #0a0a0a 70%);
+        }
+
+        .hero-logo {
+            font-size: 4rem;
+            font-weight: 800;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, #ffffff 0%, #b3b3b3 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 30px rgba(255, 255, 255, 0.1);
+        }
+
+        .tagline {
+            font-size: 1.5rem;
+            color: #888;
+            margin-bottom: 40px;
+            font-weight: 300;
+        }
+
+        .cta-buttons {
+            display: flex;
+            gap: 20px;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            border-radius: 30px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: none;
+            outline: none;
+        }
+
+        .btn-primary {
+            background-color: var(--accent-color);
+            color: white;
+            box-shadow: 0 4px 15px rgba(0, 102, 255, 0.3);
+        }
+
+        .btn-primary:hover {
+            background-color: var(--accent-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 102, 255, 0.4);
+        }
+
+        .btn-secondary {
+            background-color: transparent;
+            border: 2px solid var(--border-color);
+            color: var(--text-color);
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--text-color);
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        /* Modals */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal {
+            background: var(--modal-bg);
+            padding: 40px;
+            border-radius: 20px;
+            width: 100%;
+            max-width: 400px;
+            position: relative;
+            transform: scale(0.9);
+            transition: all 0.3s ease;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-overlay.active .modal {
+            transform: scale(1);
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: none;
+            border: none;
+            color: #666;
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: color 0.3s;
+        }
+
+        .close-btn:hover {
+            color: #fff;
+        }
+
+        .modal h2 {
+            margin-bottom: 30px;
+            text-align: center;
+            color: #fff;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #aaa;
+            font-size: 0.9rem;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            background: var(--input-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: #fff;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--accent-color);
+        }
+
+        .modal-footer {
+            margin-top: 20px;
+            text-align: center;
+            font-size: 0.9rem;
+            color: #888;
+        }
+
+        .modal-footer a {
+            color: var(--accent-color);
+            text-decoration: none;
+            margin-left: 5px;
+        }
+
+        .modal-footer a:hover {
+            text-decoration: underline;
+        }
+
+        .welcome-message {
+            position: fixed;
+            top: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 102, 255, 0.9);
+            /* More opaque */
+            border: 1px solid var(--accent-color);
+            color: #fff;
+            padding: 15px 30px;
+            border-radius: 50px;
+            z-index: 2000;
+            /* Higher than everything */
+            display: none;
+            animation: slideDown 0.5s ease;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .user-menu {
+            display: none;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .user-name {
+            color: #fff;
+            font-weight: 600;
+        }
+
+        @keyframes slideDown {
+            from {
+                top: -50px;
+                opacity: 0;
+            }
+
+            to {
+                top: 100px;
+                opacity: 1;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .hero-logo {
+                font-size: 2.5rem;
+            }
+
+            .tagline {
+                font-size: 1.1rem;
+            }
+
+            .modal {
+                margin: 20px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <div class="logo">QuickSilver</div>
+        <div id="user-menu" class="user-menu">
+            <span id="user-name-display" class="user-name"></span>
+            <button class="btn btn-secondary" onclick="handleLogout()"
+                style="padding: 8px 20px; font-size: 0.9rem;">Logout</button>
+        </div>
+    </header>
+
+    <div id="welcome-msg" class="welcome-message"></div>
+
+    <section class="hero">
+        <h1 class="hero-logo">QuickSilver</h1>
+        <p class="tagline">Your AI-Powered Investment Partner</p>
+        <div id="auth-buttons" class="cta-buttons">
+            <button class="btn btn-primary" onclick="openModal('login-modal')">Login</button>
+            <button class="btn btn-secondary" onclick="openModal('signup-modal')">Sign Up</button>
+        </div>
+        <div id="dashboard-btn" class="cta-buttons" style="display: none;">
+            <button class="btn btn-primary">Go to Dashboard</button>
+        </div>
+    </section>
+
+    <!-- Login Modal -->
+    <div id="login-modal" class="modal-overlay" onclick="closeModal(event, 'login-modal')">
+        <div class="modal" onclick="event.stopPropagation()">
+            <button class="close-btn" onclick="closeModal(null, 'login-modal')">&times;</button>
+            <h2>Welcome Back</h2>
+            <form id="login-form" onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="login-email" required placeholder="Enter your email">
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="login-password" required placeholder="Enter your password">
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%">Login</button>
+            </form>
+            <div class="modal-footer">
+                New user? <a href="#" onclick="switchModal('login-modal', 'signup-modal')">Sign up</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Signup Modal -->
+    <div id="signup-modal" class="modal-overlay" onclick="closeModal(event, 'signup-modal')">
+        <div class="modal" onclick="event.stopPropagation()">
+            <button class="close-btn" onclick="closeModal(null, 'signup-modal')">&times;</button>
+            <h2>Create Account</h2>
+            <form id="signup-form" onsubmit="handleSignup(event)">
+                <div class="form-group">
+                    <label>Full Name</label>
+                    <input type="text" id="signup-name" required placeholder="Enter your name">
+                </div>
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="signup-email" required placeholder="Enter your email">
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="signup-password" required placeholder="Create a password">
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%">Sign Up</button>
+            </form>
+            <div class="modal-footer">
+                Already have an account? <a href="#" onclick="switchModal('signup-modal', 'login-modal')">Login</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Modal Functions
+        function openModal(modalId) {
+            document.getElementById(modalId).classList.add('active');
+        }
+
+        function closeModal(event, modalId) {
+            if (event && event.target !== event.currentTarget) return;
+            document.getElementById(modalId).classList.remove('active');
+        }
+
+        function switchModal(closeId, openId) {
+            document.getElementById(closeId).classList.remove('active');
+            setTimeout(() => {
+                document.getElementById(openId).classList.add('active');
+            }, 200);
+        }
+
+        // Auth Logic
+        function handleSignup(e) {
+            e.preventDefault();
+            const name = document.getElementById('signup-name').value;
+            const email = document.getElementById('signup-email').value;
+            const password = document.getElementById('signup-password').value;
+
+            if (!name || !email || !password) {
+                alert('Please fill in all fields');
+                return;
+            }
+
+            // Simple email validation
+            if (!email.includes('@')) {
+                alert('Please enter a valid email');
+                return;
+            }
+
+            const user = { name, email, password };
+            localStorage.setItem('quicksilver_user_' + email, JSON.stringify(user));
+
+            // Auto login after signup
+            localStorage.setItem('quicksilver_current_user', JSON.stringify(user));
+
+            closeModal(null, 'signup-modal');
+            showWelcome(name);
+            updateUIState(user);
+            document.getElementById('signup-form').reset();
+        }
+
+        function handleLogin(e) {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+
+            const storedUser = localStorage.getItem('quicksilver_user_' + email);
+
+            if (storedUser) {
+                const user = JSON.parse(storedUser);
+                if (user.password === password) {
+                    localStorage.setItem('quicksilver_current_user', JSON.stringify(user));
+                    closeModal(null, 'login-modal');
+                    showWelcome(user.name);
+                    updateUIState(user);
+                    document.getElementById('login-form').reset();
+                } else {
+                    alert('Incorrect password');
+                }
+            } else {
+                alert('User not found. Please sign up.');
+            }
+        }
+
+        function handleLogout() {
+            localStorage.removeItem('quicksilver_current_user');
+            location.reload();
+        }
+
+        function updateUIState(user) {
+            if (user) {
+                document.getElementById('auth-buttons').style.display = 'none';
+                document.getElementById('dashboard-btn').style.display = 'flex';
+                document.getElementById('user-menu').style.display = 'flex';
+                document.getElementById('user-name-display').textContent = user.name;
+            } else {
+                document.getElementById('auth-buttons').style.display = 'flex';
+                document.getElementById('dashboard-btn').style.display = 'none';
+                document.getElementById('user-menu').style.display = 'none';
+            }
+        }
+
+        function showWelcome(name) {
+            const welcomeMsg = document.getElementById('welcome-msg');
+            welcomeMsg.textContent = `Welcome, ${name}!`;
+            welcomeMsg.style.display = 'block';
+
+            setTimeout(() => {
+                welcomeMsg.style.display = 'none';
+            }, 3000);
+        }
+
+        // Check for logged in user on load
+        window.onload = function () {
+            const currentUser = localStorage.getItem('quicksilver_current_user');
+            if (currentUser) {
+                const user = JSON.parse(currentUser);
+                updateUIState(user);
+                // Optional: Don't show welcome message on every reload, only on login/signup
+                // But user requested "After successful login, show message". 
+                // If they reload, they are already logged in, so maybe no message needed, 
+                // but the UI state update is critical.
+            }
+        }
+    </script>
+</body>
+
+</html>
