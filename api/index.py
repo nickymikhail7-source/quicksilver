@@ -18,7 +18,13 @@ class handler(BaseHTTPRequestHandler):
         # Default to NASDAQ if no exchange specified for common tech stocks
         if ':' not in symbol:
             symbol_upper = symbol.upper()
-            if symbol_upper in ['RELIANCE', 'TCS', 'INFY', 'HDFCBANK']:
+            # Common Indian stocks - default to NSE
+            indian_stocks = [
+                'RELIANCE', 'TCS', 'INFY', 'HDFCBANK', 'GROWW', 
+                'TATAMOTORS', 'WIPRO', 'BAJAJ', 'ADANI', 'ITC',
+                'SBIN', 'ICICIBANK', 'BHARTIARTL', 'HINDUNILVR', 'KOTAKBANK'
+            ]
+            if symbol_upper in indian_stocks:
                 symbol = f"{symbol_upper}:NSE"
             else:
                 # Revert to SYMBOL:EXCHANGE format as NASDAQ:SYMBOL redirects to index
