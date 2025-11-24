@@ -720,7 +720,6 @@
 
         let profilingStep = -1; // -1: not profiling, 0-2: questions
         let userAnswers = [];
-        const FMP_API_KEY = 'QN1ER6QvmzPEFKKZupUMhEX9SLW1CGek';
 
         async function sendMessage() {
             const input = document.getElementById('chat-input');
@@ -773,7 +772,7 @@
                 return "To give you the best advice, I need to know your investor profile first. Let's start: What is your primary investment goal? (Growth, Income, or Preservation)";
             }
             
-            // Stock Cards Logic - Real API with Search
+            // Stock Cards Logic - Scraper Backend
             // Extract potential company name or symbol
             let query = null;
             
@@ -782,9 +781,7 @@
             } else if (lowerMsg.includes('how is')) {
                 query = message.substring(lowerMsg.indexOf('how is') + 6).trim();
             } else if (lowerMsg.includes('stock')) {
-                 // specific logic for "stock" might be tricky, let's stick to the above for now or simple regex
                  const words = message.split(' ');
-                 // Try to find the capitalized word that isn't a keyword
                  for (const word of words) {
                     if (word === word.toUpperCase() && word.length >= 2 && !['HOW', 'WHAT', 'THE', 'WHO', 'WHY', 'PRICE', 'STOCK'].includes(word)) {
                         query = word;
@@ -796,57 +793,31 @@
                 const stockMap = {
                     'apple': 'AAPL', 'tesla': 'TSLA', 'google': 'GOOGL', 'alphabet': 'GOOGL', 
                     'amazon': 'AMZN', 'microsoft': 'MSFT', 'meta': 'META', 'facebook': 'META',
-                    'netflix': 'NFLX', 'nvidia': 'NVDA'
+                    'netflix': 'NFLX', 'nvidia': 'NVDA',
+                    'reliance': 'RELIANCE', 'tata': 'TCS', 'infosys': 'INFY', 'hdfc': 'HDFCBANK'
                 };
                 for (const [name, sym] of Object.entries(stockMap)) {
                     if (lowerMsg.includes(name)) {
-                        query = sym; // Treat as symbol for direct lookup if already known
+                        query = sym; 
                         break;
                     }
                 }
             }
             
-            // Clean up query (remove punctuation)
             if (query) {
                 query = query.replace(/[?.!]/g, '');
             }
 
             if (query && (lowerMsg.includes('price') || lowerMsg.includes('stock') || lowerMsg.includes('how is'))) {
                 try {
-                    // First, try to search for the symbol if it's not obviously a ticker
-                    let symbol = query.toUpperCase();
-                    
-                    // If query is likely a name (longer than 5 chars or contains spaces or lowercase), search it
-                    if (query.length > 5 || query.includes(' ') || query !== query.toUpperCase()) {
-                        const searchResult = await searchSymbol(query);
-                        if (searchResult) {
-                            symbol = searchResult;
-                        } else {
-                             // If search fails, maybe it was a ticker? Let's try fetching directly as fallback
-                             symbol = query.toUpperCase();
-                        }
-                    }
-
-                    const stockData = await fetchStockData(symbol);
-                    if (stockData) {
+                    // Pass the query directly to the backend, it handles default exchanges
+                    const stockData = await fetchStockData(query);
+                    if (stockData && stockData.price !== "N/A") {
                         return {
                             text: `Here is the latest market data for ${stockData.name} (${stockData.symbol}).`,
                             data: stockData
                         };
                     } else {
-                        // Try searching one last time if direct fetch failed and we haven't searched yet
-                        if (symbol === query.toUpperCase()) {
-                             const searchResult = await searchSymbol(query);
-                             if (searchResult) {
-                                 const retryData = await fetchStockData(searchResult);
-                                 if (retryData) {
-                                     return {
-                                         text: `Here is the latest market data for ${retryData.name} (${retryData.symbol}).`,
-                                         data: retryData
-                                     };
-                                 }
-                             }
-                        }
                         return `I couldn't find data for "${query}". Please check the company name or ticker.`;
                     }
                 } catch (e) {
@@ -875,36 +846,16 @@
             return "I understand you're interested in investments. Could you be more specific? You can ask about stock prices, market trends, or investment advice.";
         }
 
-        async function searchSymbol(query) {
-            try {
-                const response = await fetch(`https://financialmodelingprep.com/api/v3/search?query=${query}&limit=1&apikey=${FMP_API_KEY}`);
-                const data = await response.json();
-                if (data && data.length > 0) {
-                    return data[0].symbol;
-                }
-                return null;
-            } catch (error) {
-                console.error("Error searching symbol:", error);
-                return null;
-            }
-        }
+
 
         async function fetchStockData(symbol) {
             try {
-                const response = await fetch(`https://financialmodelingprep.com/api/v3/quote/${symbol}?apikey=${FMP_API_KEY}`);
+                // Call our own backend
+                const response = await fetch(`/api/stock?symbol=${symbol}`);
                 const data = await response.json();
                 
-                if (data && data.length > 0) {
-                    const stock = data[0];
-                    return {
-                        symbol: stock.symbol,
-                        name: stock.name,
-                        price: stock.price.toFixed(2),
-                        change: stock.changesPercentage.toFixed(2) + '%',
-                        isPositive: stock.change >= 0,
-                        mktCap: formatCompactNumber(stock.marketCap),
-                        pe: stock.pe ? stock.pe.toFixed(1) : 'N/A'
-                    };
+                if (data && !data.error) {
+                    return data;
                 }
                 return null;
             } catch (error) {
