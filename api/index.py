@@ -48,8 +48,9 @@ class handler(BaseHTTPRequestHandler):
             # Use the LAST candidate (stock price comes after indices/related stocks)
             if price_candidates:
                 if ':NSE' in symbol or ':BSE' in symbol:
-                    # For Indian stocks, use 2nd occurrence (first is usually correct)
-                    price = price_candidates[1] if len(price_candidates) > 1 else price_candidates[0]
+                    # For Indian stocks, filter for ₹ only and use 2nd occurrence
+                    inr_prices = [p for p in price_candidates if '₹' in p]
+                    price = inr_prices[1] if len(inr_prices) > 1 else (inr_prices[0] if inr_prices else price_candidates[0])
                 else:
                     # For US stocks, filter by price range to avoid indices/micro-caps
                     # Major stocks are typically $50-$500
