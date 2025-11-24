@@ -17,11 +17,12 @@ class handler(BaseHTTPRequestHandler):
 
         # Default to NASDAQ if no exchange specified for common tech stocks
         if ':' not in symbol:
-            if symbol in ['RELIANCE', 'TCS', 'INFY', 'HDFCBANK']:
-                symbol = f"{symbol}:NSE"
+            symbol_upper = symbol.upper()
+            if symbol_upper in ['RELIANCE', 'TCS', 'INFY', 'HDFCBANK']:
+                symbol = f"{symbol_upper}:NSE"
             else:
                 # Revert to SYMBOL:EXCHANGE format as NASDAQ:SYMBOL redirects to index
-                symbol = f"{symbol}:NASDAQ"
+                symbol = f"{symbol_upper}:NASDAQ"
 
         url = f"https://www.google.com/finance/quote/{symbol}"
         
