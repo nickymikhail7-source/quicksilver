@@ -720,44 +720,51 @@
 
         let profilingStep = -1; // -1: not profiling, 0-2: questions
         let userAnswers = [];
+        const FMP_API_KEY = 'QN1ER6QvmzPEFKKZupUMhEX9SLW1CGek';
 
-        function sendMessage() {
+        async function sendMessage() {
             const input = document.getElementById('chat-input');
             const message = input.value.trim();
-
+            
             if (message) {
                 addMessage(message, 'user');
                 input.value = '';
-
+                
                 showTypingIndicator();
-
-                // Simulate network delay
-                setTimeout(() => {
+                
+                // Simulate network delay + API call time
+                // We need to handle async response now
+                try {
+                    const response = await generateResponse(message);
                     hideTypingIndicator();
                     
-                    if (profilingStep >= 0) {
-                        handleProfilingInput(message);
-                    } else {
-                        const response = generateResponse(message);
-                        // Check if response is an object (stock card) or string
-                        if (typeof response === 'object') {
-                            addMessage(response.text, 'ai');
+                    if (typeof response === 'object') {
+                        addMessage(response.text, 'ai');
+                        if (response.data) {
                             addStockCard(response.data);
-                        } else {
-                            addMessage(response, 'ai');
                         }
+                    } else {
+                        addMessage(response, 'ai');
                     }
-                }, 1500);
+                } catch (error) {
+                    console.error(error);
+                    hideTypingIndicator();
+                    addMessage("I'm sorry, I encountered an error processing your request.", 'ai');
+                }
             }
         }
 
-        function generateResponse(message) {
+        async function generateResponse(message) {
             const lowerMsg = message.toLowerCase();
             
             // Check if user wants to start profiling
             if (lowerMsg.includes('profile') || lowerMsg.includes('analyze me')) {
                 startProfiling();
                 return "Let's determine your investor profile. I'll ask you 3 quick questions. First: What is your primary investment goal? (Growth, Income, or Preservation)";
+            }
+            
+            if (profilingStep >= 0) {
+                return handleProfilingInput(message);
             }
 
             // Check if user asks for advice but has no profile
@@ -766,36 +773,50 @@
                 return "To give you the best advice, I need to know your investor profile first. Let's start: What is your primary investment goal? (Growth, Income, or Preservation)";
             }
             
-            // Stock Cards Logic
-            if (lowerMsg.includes('apple') || lowerMsg.includes('aapl')) {
-                return {
-                    text: "Here is the current market data for Apple Inc.",
-                    data: { symbol: 'AAPL', name: 'Apple Inc.', price: '175.43', change: '+1.25%', isPositive: true, mktCap: '2.7T', pe: '28.5' }
-                };
+            // Stock Cards Logic - Real API
+            // Simple regex to find stock symbols or common names
+            const stockMap = {
+                'apple': 'AAPL', 'tesla': 'TSLA', 'google': 'GOOGL', 'alphabet': 'GOOGL', 
+                'amazon': 'AMZN', 'microsoft': 'MSFT', 'meta': 'META', 'facebook': 'META',
+                'netflix': 'NFLX', 'nvidia': 'NVDA'
+            };
+            
+            let symbol = null;
+            
+            // Check mapped names
+            for (const [name, sym] of Object.entries(stockMap)) {
+                if (lowerMsg.includes(name)) {
+                    symbol = sym;
+                    break;
+                }
             }
-            if (lowerMsg.includes('tesla') || lowerMsg.includes('tsla')) {
-                return {
-                    text: "Here is the latest on Tesla, Inc.",
-                    data: { symbol: 'TSLA', name: 'Tesla, Inc.', price: '240.50', change: '-0.85%', isPositive: false, mktCap: '760B', pe: '68.2' }
-                };
+            
+            // Check for explicit symbols (e.g., "price of AAPL")
+            if (!symbol) {
+                const words = message.split(' ');
+                for (const word of words) {
+                    if (word === word.toUpperCase() && word.length >= 2 && word.length <= 5 && !['HOW', 'WHAT', 'THE', 'WHO', 'WHY'].includes(word)) {
+                        // Potential symbol
+                        symbol = word;
+                        break;
+                    }
+                }
             }
-            if (lowerMsg.includes('google') || lowerMsg.includes('googl')) {
-                return {
-                    text: "Pulling up data for Alphabet Inc.",
-                    data: { symbol: 'GOOGL', name: 'Alphabet Inc.', price: '135.20', change: '+0.55%', isPositive: true, mktCap: '1.7T', pe: '25.1' }
-                };
-            }
-            if (lowerMsg.includes('amazon') || lowerMsg.includes('amzn')) {
-                return {
-                    text: "Here's how Amazon is performing.",
-                    data: { symbol: 'AMZN', name: 'Amazon.com', price: '130.00', change: '+0.92%', isPositive: true, mktCap: '1.3T', pe: '105.4' }
-                };
-            }
-            if (lowerMsg.includes('microsoft') || lowerMsg.includes('msft')) {
-                return {
-                    text: "Microsoft Corporation market data:",
-                    data: { symbol: 'MSFT', name: 'Microsoft Corp.', price: '330.00', change: '+1.50%', isPositive: true, mktCap: '2.5T', pe: '32.4' }
-                };
+
+            if (symbol && (lowerMsg.includes('price') || lowerMsg.includes('stock') || lowerMsg.includes('how is'))) {
+                try {
+                    const stockData = await fetchStockData(symbol);
+                    if (stockData) {
+                        return {
+                            text: `Here is the latest market data for ${stockData.name}.`,
+                            data: stockData
+                        };
+                    } else {
+                        return `I couldn't find data for symbol ${symbol}. Please check the ticker.`;
+                    }
+                } catch (e) {
+                    return "I'm having trouble connecting to the market data provider right now.";
+                }
             }
 
             if (lowerMsg.includes('stock') || lowerMsg.includes('price')) {
@@ -816,6 +837,52 @@
             }
             
             return "I understand you're interested in investments. Could you be more specific? You can ask about stock prices, market trends, or investment advice.";
+        }
+
+        async function fetchStockData(symbol) {
+            try {
+                const response = await fetch(`https://financialmodelingprep.com/api/v3/quote/${symbol}?apikey=${FMP_API_KEY}`);
+                const data = await response.json();
+                
+                if (data && data.length > 0) {
+                    const stock = data[0];
+                    return {
+                        symbol: stock.symbol,
+                        name: stock.name,
+                        price: stock.price.toFixed(2),
+                        change: stock.changesPercentage.toFixed(2) + '%',
+                        isPositive: stock.change >= 0,
+                        mktCap: formatCompactNumber(stock.marketCap),
+                        pe: stock.pe ? stock.pe.toFixed(1) : 'N/A'
+                    };
+                }
+                return null;
+            } catch (error) {
+                console.error("Error fetching stock data:", error);
+                return null;
+            }
+        }
+
+        function formatCompactNumber(number) {
+            const formatter = Intl.NumberFormat("en", { notation: "compact" });
+            return formatter.format(number);
+        }
+
+        function handleProfilingInput(message) {
+            userAnswers.push(message);
+
+            if (profilingStep === 0) {
+                profilingStep++;
+                return "Got it. Second question: What is your time horizon? (Short term, Medium term, or Long term)";
+            } else if (profilingStep === 1) {
+                profilingStep++;
+                return "Understood. Last question: How would you describe your risk tolerance? (Low, Medium, or High)";
+            } else if (profilingStep === 2) {
+                profilingStep = -1; // End profiling
+                const profile = calculateProfile();
+                localStorage.setItem('quicksilver_profile', profile);
+                return `Thank you. Based on your answers, I've identified your profile as **${profile}**. I will tailor my future advice to this profile.`;
+            }
         }
 
         function addStockCard(data) {
@@ -851,23 +918,6 @@
         function startProfiling() {
             profilingStep = 0;
             userAnswers = [];
-        }
-
-        function handleProfilingInput(message) {
-            userAnswers.push(message);
-
-            if (profilingStep === 0) {
-                profilingStep++;
-                addMessage("Got it. Second question: What is your time horizon? (Short term, Medium term, or Long term)", 'ai');
-            } else if (profilingStep === 1) {
-                profilingStep++;
-                addMessage("Understood. Last question: How would you describe your risk tolerance? (Low, Medium, or High)", 'ai');
-            } else if (profilingStep === 2) {
-                profilingStep = -1; // End profiling
-                const profile = calculateProfile();
-                localStorage.setItem('quicksilver_profile', profile);
-                addMessage(`Thank you. Based on your answers, I've identified your profile as **${profile}**. I will tailor my future advice to this profile.`, 'ai');
-            }
         }
 
         function calculateProfile() {
