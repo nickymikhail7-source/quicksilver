@@ -510,6 +510,41 @@
                 transform: translateY(0);
             }
         }
+
+        /* Autocomplete Styles */
+        .autocomplete-items {
+            position: absolute;
+            border: 1px solid #333;
+            border-bottom: none;
+            border-top: none;
+            z-index: 99;
+            bottom: 100%;
+            left: 0;
+            right: 0;
+            background-color: #1e1e1e;
+            border-radius: 12px 12px 0 0;
+            overflow: hidden;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .autocomplete-item {
+            padding: 10px;
+            cursor: pointer;
+            background-color: #1e1e1e;
+            border-bottom: 1px solid #333;
+            color: #fff;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .autocomplete-item:hover {
+            background-color: #333;
+        }
+
+        .autocomplete-item strong {
+            color: #007bff;
+        }
     </style>
 </head>
 
@@ -718,25 +753,88 @@
             }
         }
 
+        // Autocomplete Logic
+        const inputField = document.getElementById('chat-input');
+        let autocompleteContainer = null;
+
+        inputField.addEventListener('input', function (e) {
+            const val = this.value;
+            closeAllLists();
+            if (!val || val.length < 2) { return false; }
+
+            // Fetch suggestions from backend
+            fetch(`/api/stock?mode=search&q=${val}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.length === 0) return;
+
+                    autocompleteContainer = document.createElement("div");
+                    autocompleteContainer.setAttribute("id", "autocomplete-list");
+                    autocompleteContainer.setAttribute("class", "autocomplete-items");
+
+                    // Ensure parent is relative for positioning
+                    this.parentNode.style.position = "relative";
+                    this.parentNode.appendChild(autocompleteContainer);
+
+                    data.forEach(item => {
+                        const b = document.createElement("div");
+                        b.className = "autocomplete-item";
+                        b.innerHTML = `<span>${item.name}</span> <strong>${item.symbol.split(':')[0]}</strong>`;
+                        b.addEventListener("click", function (e) {
+                            // Send the query directly
+                            inputField.value = "";
+                            closeAllLists();
+                            addMessage(item.name, 'user');
+
+                            // Call generateResponse directly
+                            showTypingIndicator();
+                            generateResponse(`Price of ${item.symbol}`).then(response => {
+                                hideTypingIndicator();
+                                if (typeof response === 'object') {
+                                    addMessage(response.text, 'ai');
+                                    if (response.data) addStockCard(response.data);
+                                } else {
+                                    addMessage(response, 'ai');
+                                }
+                            });
+                        });
+                        autocompleteContainer.appendChild(b);
+                    });
+                });
+        });
+
+        function closeAllLists(elmnt) {
+            var x = document.getElementsByClassName("autocomplete-items");
+            for (var i = 0; i < x.length; i++) {
+                if (elmnt != x[i] && elmnt != inputField) {
+                    x[i].parentNode.removeChild(x[i]);
+                }
+            }
+        }
+
+        document.addEventListener("click", function (e) {
+            closeAllLists(e.target);
+        });
+
         let profilingStep = -1; // -1: not profiling, 0-2: questions
         let userAnswers = [];
 
         async function sendMessage() {
             const input = document.getElementById('chat-input');
             const message = input.value.trim();
-            
+
             if (message) {
                 addMessage(message, 'user');
                 input.value = '';
-                
+
                 showTypingIndicator();
-                
+
                 // Simulate network delay + API call time
                 // We need to handle async response now
                 try {
                     const response = await generateResponse(message);
                     hideTypingIndicator();
-                    
+
                     if (typeof response === 'object') {
                         addMessage(response.text, 'ai');
                         if (response.data) {
@@ -755,13 +853,13 @@
 
         async function generateResponse(message) {
             const lowerMsg = message.toLowerCase();
-            
+
             // Check if user wants to start profiling
             if (lowerMsg.includes('profile') || lowerMsg.includes('analyze me')) {
                 startProfiling();
                 return "Let's determine your investor profile. I'll ask you 3 quick questions. First: What is your primary investment goal? (Growth, Income, or Preservation)";
             }
-            
+
             if (profilingStep >= 0) {
                 return handleProfilingInput(message);
             }
@@ -771,33 +869,39 @@
                 startProfiling();
                 return "To give you the best advice, I need to know your investor profile first. Let's start: What is your primary investment goal? (Growth, Income, or Preservation)";
             }
-            
+
             // Stock Cards Logic - Scraper Backend
             // Extract potential company name or symbol
             let query = null;
-            
+
             if (lowerMsg.includes('price of')) {
                 query = message.substring(lowerMsg.indexOf('price of') + 8).trim();
             } else if (lowerMsg.includes('how is')) {
                 query = message.substring(lowerMsg.indexOf('how is') + 6).trim();
+            } else if (message.length < 20 && !lowerMsg.includes(' ') && !['hi', 'hello', 'help', 'start'].includes(lowerMsg)) {
+                // Single word -> likely a symbol
+                query = message;
+            } else if (message.length < 30 && !['hi', 'hello', 'help', 'start'].includes(lowerMsg) && !lowerMsg.includes('profile')) {
+                // Short phrase -> try as company name
+                query = message;
             } else if (lowerMsg.includes('stock')) {
-                 const words = message.split(' ');
-                 for (const word of words) {
+                const words = message.split(' ');
+                for (const word of words) {
                     if (word === word.toUpperCase() && word.length >= 2 && !['HOW', 'WHAT', 'THE', 'WHO', 'WHY', 'PRICE', 'STOCK'].includes(word)) {
                         query = word;
                         break;
                     }
-                 }
+                }
             }
-            
+
             if (query) {
                 query = query.replace(/[?.!]/g, '').trim();
-                
+
                 // Translate company names to symbols using stockMap
                 const queryLower = query.toLowerCase();
                 const stockMap = {
                     // US Tech Giants
-                    'apple': 'AAPL', 'tesla': 'TSLA', 'google': 'GOOGL', 'alphabet': 'GOOGL', 
+                    'apple': 'AAPL', 'tesla': 'TSLA', 'google': 'GOOGL', 'alphabet': 'GOOGL',
                     'amazon': 'AMZN', 'microsoft': 'MSFT', 'meta': 'META', 'facebook': 'META',
                     'netflix': 'NFLX', 'nvidia': 'NVDA',
                     // Indian Companies
@@ -805,13 +909,13 @@
                     'airtel': 'BHARTIARTL', 'bharti': 'BHARTIARTL',
                     'bajaj': 'BAJAJ-AUTO', 'bajaj auto': 'BAJAJ-AUTO',
                     'wipro': 'WIPRO', 'itc': 'ITC', 'adani': 'ADANI',
-                   'sbi': 'SBIN', 'icici': 'ICICIBANK', 'kotak': 'KOTAKBANK',
+                    'sbi': 'SBIN', 'icici': 'ICICIBANK', 'kotak': 'KOTAKBANK',
                     'tata motors': 'TATAMOTORS', 'tata motor': 'TATAMOTORS',
                     'maruti': 'MARUTI', 'hero': 'HEROMOTOCO',
                     'asian paints': 'ASIANPAINT', 'titan': 'TITAN',
                     'groww': 'GROWW'
                 };
-                
+
                 // Check if query matches a company name in the map
                 if (stockMap[queryLower]) {
                     query = stockMap[queryLower];
@@ -853,7 +957,7 @@
             if (lowerMsg.includes('hello') || lowerMsg.includes('hi')) {
                 return "Hello! I'm ready to help you optimize your portfolio. What's on your mind today?";
             }
-            
+
             return "I understand you're interested in investments. Could you be more specific? You can ask about stock prices, market trends, or investment advice.";
         }
 
@@ -864,7 +968,7 @@
                 // Call our own backend
                 const response = await fetch(`/api/stock?symbol=${symbol}`);
                 const data = await response.json();
-                
+
                 if (data && !data.error) {
                     return data;
                 }

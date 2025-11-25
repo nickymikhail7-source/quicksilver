@@ -35,39 +35,67 @@ def load_nse_stock_list():
 # Global stock dictionaries
 NSE_SYMBOL_TO_NAME, NSE_NAME_TO_SYMBOL = load_nse_stock_list()
 
+# Common US Tech/Popular Stocks (Manual List for Fuzzy Matching)
+US_STOCKS = {
+    "APPLE INC": "AAPL",
+    "MICROSOFT CORPORATION": "MSFT",
+    "AMAZON COM INC": "AMZN",
+    "ALPHABET INC": "GOOGL",
+    "GOOGLE": "GOOGL",
+    "META PLATFORMS INC": "META",
+    "FACEBOOK": "META",
+    "TESLA INC": "TSLA",
+    "NVIDIA CORP": "NVDA",
+    "NETFLIX INC": "NFLX",
+    "PALANTIR TECHNOLOGIES INC": "PLTR",
+    "PALANTIR": "PLTR",
+    "ADVANCED MICRO DEVICES": "AMD",
+    "INTEL CORP": "INTC",
+    "COCA COLA CO": "KO",
+    "PEPSICO INC": "PEP",
+    "DISNEY WALT CO": "DIS",
+    "UBER TECHNOLOGIES INC": "UBER",
+    "AIRBNB INC": "ABNB",
+    "GAMESTOP CORP": "GME",
+    "AMC ENTERTAINMENT": "AMC"
+}
+
 def fuzzy_match_company(query):
-    """Return the best matching NSE symbol for a company name query.
-    1. Exact match
-    2. Difflib close match
-    3. Smart token match (handles 'Jio Finance' -> 'Jio Financial Services')
+    """Return the best matching symbol for a company name query.
+    Checks US stocks first, then NSE.
     """
     query_upper = query.upper()
     
-    # 1. Direct lookup
-    if query_upper in NSE_NAME_TO_SYMBOL:
-        return NSE_NAME_TO_SYMBOL[query_upper]
+    # 1. Check US Stocks first (Manual List)
+    if query_upper in US_STOCKS:
+        return f"{US_STOCKS[query_upper]}:NASDAQ"
         
-    # 2. Difflib match (good for typos)
+    # Fuzzy match US stocks
+    us_matches = difflib.get_close_matches(query_upper, US_STOCKS.keys(), n=1, cutoff=0.8)
+    if us_matches:
+        return f"{US_STOCKS[us_matches[0]]}:NASDAQ"
+
+    # 2. Check NSE Stocks
+    if query_upper in NSE_NAME_TO_SYMBOL:
+        return f"{NSE_NAME_TO_SYMBOL[query_upper]}:NSE"
+        
+    # Difflib match for NSE
     matches = difflib.get_close_matches(query_upper, NSE_NAME_TO_SYMBOL.keys(), n=1, cutoff=0.7)
     if matches:
-        return NSE_NAME_TO_SYMBOL[matches[0]]
+        return f"{NSE_NAME_TO_SYMBOL[matches[0]]}:NSE"
 
-    # 3. Smart Token Match
-    # Normalize query: remove common noise words if they aren't the only words
-    stopwords = {'LTD', 'LIMITED', 'PVT', 'PRIVATE', 'INC', 'CORP', 'CORPORATION', 'COMPANY', 'SERVICES', 'FINANCE', 'FINANCIAL'}
+    # 3. Smart Token Match (NSE)
+    stopwords = {'LTD', 'LIMITED', 'PVT', 'PRIVATE', 'INC', 'CORP', 'CORPORATION', 'COMPANY', 'SERVICES', 'FINANCE', 'FINANCIAL', 'TECHNOLOGIES'}
     query_tokens = [t for t in query_upper.split() if t not in stopwords or len(query_upper.split()) == 1]
     
     if not query_tokens:
-        query_tokens = query_upper.split() # Revert if we stripped everything
+        query_tokens = query_upper.split()
 
     best_match = None
     best_score = 0
 
     for name, sym in NSE_NAME_TO_SYMBOL.items():
         name_tokens = name.split()
-        
-        # Check if all query tokens match a prefix of a word in the company name
-        # e.g. "JIO" matches "JIO", "FIN" matches "FINANCIAL"
         matches_all_tokens = True
         for q_tok in query_tokens:
             if not any(n_tok.startswith(q_tok) for n_tok in name_tokens):
@@ -75,37 +103,75 @@ def fuzzy_match_company(query):
                 break
         
         if matches_all_tokens:
-            # Prefer shorter names (closer match) to avoid matching "Jio" to "Jio Something Else Very Long"
-            # Score = inverse of name length
             score = 100 - len(name_tokens)
             if score > best_score:
                 best_score = score
                 best_match = sym
                 
-    return best_match
+    if best_match:
+        return f"{best_match}:NSE"
+        
+    return None
 
-
+def search_stocks(query):
+    """Search for stocks matching the query (for autocomplete)"""
+    query_upper = query.upper()
+    results = []
+    
+    # Search US Stocks
+    for name, sym in US_STOCKS.items():
+        if query_upper in name or query_upper in sym:
+            results.append({"symbol": f"{sym}:NASDAQ", "name": name})
+            if len(results) >= 3: break
+            
+    # Search NSE Stocks
+    count = 0
+    for name, sym in NSE_NAME_TO_SYMBOL.items():
+        if query_upper in name or query_upper in sym:
+            results.append({"symbol": f"{sym}:NSE", "name": name})
+            count += 1
+            if count >= 5: break
+            
+    return results[:8]
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
         query_components = parse_qs(urlparse(self.path).query)
+        
+        # Check for search mode
+        mode = query_components.get('mode', [None])[0]
+        if mode == 'search':
+            q = query_components.get('q', [''])[0]
+            if not q:
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(json.dumps([]).encode('utf-8'))
+                return
+                
+            results = search_stocks(q)
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps(results).encode('utf-8'))
+            return
+
         symbol = query_components.get('symbol', [None])[0]
 
         if not symbol:
             self.send_response(400)
             self.end_headers()
-            self.wfile.write(json.dumps({'error': 'Symbol is required'}).encode('utf-8'))
+            debug_info = {'error': 'Symbol is required', 'received_query': str(query_components), 'path': self.path}
+            self.wfile.write(json.dumps(debug_info).encode('utf-8'))
             return
 
-        # Dynamic exchange detection - no hardcoding!
-        # Resolve symbol: if user didn't specify exchange, try fuzzy match first (company name)
+        # Dynamic exchange detection
         if ':' not in symbol:
-            # Try fuzzy match against NSE company names
+            # Try fuzzy match first
             fuzzy_sym = fuzzy_match_company(symbol)
             if fuzzy_sym:
-                symbol = f"{fuzzy_sym}:NSE"
+                symbol = fuzzy_sym
             else:
-                # Fall back to dynamic exchange detection (NSE/BSE/NASDAQ)
+                # Fall back to dynamic exchange detection
                 result = self.try_exchanges(symbol.upper())
                 if result:
                     self.send_response(200)
