@@ -57,7 +57,27 @@ US_STOCKS = {
     "UBER TECHNOLOGIES INC": "UBER",
     "AIRBNB INC": "ABNB",
     "GAMESTOP CORP": "GME",
-    "AMC ENTERTAINMENT": "AMC"
+    "AMC ENTERTAINMENT": "AMC",
+    "ROBINHOOD MARKETS INC": "HOOD",
+    "ROBINHOOD": "HOOD",
+    "COINBASE GLOBAL INC": "COIN",
+    "COINBASE": "COIN",
+    "ZOOM VIDEO COMMUNICATIONS": "ZM",
+    "ZOOM": "ZM",
+    "SHOPIFY INC": "SHOP",
+    "SHOPIFY": "SHOP",
+    "BLOCK INC": "SQ",
+    "SQUARE": "SQ",
+    "SPOTIFY TECHNOLOGY": "SPOT",
+    "SPOTIFY": "SPOT",
+    "SNAP INC": "SNAP",
+    "SNAPCHAT": "SNAP",
+    "PINTEREST INC": "PINS",
+    "PINTEREST": "PINS",
+    "ROKU INC": "ROKU",
+    "ROKU": "ROKU",
+    "DRAFTKINGS INC": "DKNG",
+    "DRAFTKINGS": "DKNG"
 }
 
 # Common Indian Brand Names vs Listed Names (Manual List)
