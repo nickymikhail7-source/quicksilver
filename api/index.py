@@ -1,8 +1,90 @@
+import csv
+import io
+import difflib
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
+import json
 import requests
 from bs4 import BeautifulSoup
-import json
+
+# Load NSE/BSE stock list (symbol -> company name) once at module load time
+def load_nse_stock_list():
+    url = "https://archives.nseindia.com/content/equities/EQUITY_L.csv"
+    try:
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+        resp = requests.get(url, headers=headers, timeout=10)
+        resp.raise_for_status()
+        # CSV is encoded in ISO-8859-1
+        text = resp.content.decode('ISO-8859-1')
+        reader = csv.DictReader(io.StringIO(text))
+        symbol_to_name = {}
+        name_to_symbol = {}
+        for row in reader:
+            sym = row.get('SYMBOL')
+            name = row.get('NAME OF COMPANY')
+            if sym and name:
+                symbol_to_name[sym.upper()] = name
+                name_to_symbol[name.upper()] = sym.upper()
+        return symbol_to_name, name_to_symbol
+    except Exception as e:
+        # If download fails, return empty dicts – fallback to existing logic
+        return {}, {}
+
+# Global stock dictionaries
+NSE_SYMBOL_TO_NAME, NSE_NAME_TO_SYMBOL = load_nse_stock_list()
+
+def fuzzy_match_company(query):
+    """Return the best matching NSE symbol for a company name query.
+    1. Exact match
+    2. Difflib close match
+    3. Smart token match (handles 'Jio Finance' -> 'Jio Financial Services')
+    """
+    query_upper = query.upper()
+    
+    # 1. Direct lookup
+    if query_upper in NSE_NAME_TO_SYMBOL:
+        return NSE_NAME_TO_SYMBOL[query_upper]
+        
+    # 2. Difflib match (good for typos)
+    matches = difflib.get_close_matches(query_upper, NSE_NAME_TO_SYMBOL.keys(), n=1, cutoff=0.7)
+    if matches:
+        return NSE_NAME_TO_SYMBOL[matches[0]]
+
+    # 3. Smart Token Match
+    # Normalize query: remove common noise words if they aren't the only words
+    stopwords = {'LTD', 'LIMITED', 'PVT', 'PRIVATE', 'INC', 'CORP', 'CORPORATION', 'COMPANY', 'SERVICES', 'FINANCE', 'FINANCIAL'}
+    query_tokens = [t for t in query_upper.split() if t not in stopwords or len(query_upper.split()) == 1]
+    
+    if not query_tokens:
+        query_tokens = query_upper.split() # Revert if we stripped everything
+
+    best_match = None
+    best_score = 0
+
+    for name, sym in NSE_NAME_TO_SYMBOL.items():
+        name_tokens = name.split()
+        
+        # Check if all query tokens match a prefix of a word in the company name
+        # e.g. "JIO" matches "JIO", "FIN" matches "FINANCIAL"
+        matches_all_tokens = True
+        for q_tok in query_tokens:
+            if not any(n_tok.startswith(q_tok) for n_tok in name_tokens):
+                matches_all_tokens = False
+                break
+        
+        if matches_all_tokens:
+            # Prefer shorter names (closer match) to avoid matching "Jio" to "Jio Something Else Very Long"
+            # Score = inverse of name length
+            score = 100 - len(name_tokens)
+            if score > best_score:
+                best_score = score
+                best_match = sym
+                
+    return best_match
+
+
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -16,34 +98,40 @@ class handler(BaseHTTPRequestHandler):
             return
 
         # Dynamic exchange detection - no hardcoding!
-        # If user didn't specify exchange (e.g. "AAPL" vs "AAPL:NASDAQ")
+        # Resolve symbol: if user didn't specify exchange, try fuzzy match first (company name)
         if ':' not in symbol:
-            symbol_upper = symbol.upper()
-            # Try exchanges in order: NSE -> BSE -> NASDAQ
-            result = self.try_exchanges(symbol_upper)
-            if result:
-                self.send_response(200)
-                self.send_header('Content-type', 'application/json')
-                self.end_headers()
-                self.wfile.write(json.dumps(result).encode('utf-8'))
+            # Try fuzzy match against NSE company names
+            fuzzy_sym = fuzzy_match_company(symbol)
+            if fuzzy_sym:
+                symbol = f"{fuzzy_sym}:NSE"
             else:
-                self.send_response(404)
-                self.send_header('Content-type', 'application/json')
-                self.end_headers()
-                self.wfile.write(json.dumps({'error': f'Stock {symbol} not found on NSE, BSE, or NASDAQ'}).encode('utf-8'))
+                # Fall back to dynamic exchange detection (NSE/BSE/NASDAQ)
+                result = self.try_exchanges(symbol.upper())
+                if result:
+                    self.send_response(200)
+                    self.send_header('Content-type', 'application/json')
+                    self.end_headers()
+                    self.wfile.write(json.dumps(result).encode('utf-8'))
+                    return
+                else:
+                    self.send_response(404)
+                    self.send_header('Content-type', 'application/json')
+                    self.end_headers()
+                    self.wfile.write(json.dumps({'error': f'Stock {symbol} not found'}).encode('utf-8'))
+                    return
+        # If symbol already includes exchange, just fetch data
+        result = self.fetch_stock_data(symbol)
+        if result:
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps(result).encode('utf-8'))
         else:
-            # User specified exchange explicitly (e.g. "RELIANCE:NSE")
-            result = self.fetch_stock_data(symbol)
-            if result:
-                self.send_response(200)
-                self.send_header('Content-type', 'application/json')
-                self.end_headers()
-                self.wfile.write(json.dumps(result).encode('utf-8'))
-            else:
-                self.send_response(404)
-                self.send_header('Content-type', 'application/json')
-                self.end_headers()
-                self.wfile.write(json.dumps({'error': f'Stock {symbol} not found'}).encode('utf-8'))
+            self.send_response(404)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({'error': f'Stock {symbol} not found'}).encode('utf-8'))
+            return
 
     def try_exchanges(self, symbol):
         """Try to find stock on NSE, BSE, then NASDAQ in that order"""
