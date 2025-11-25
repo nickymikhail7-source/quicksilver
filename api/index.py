@@ -60,9 +60,27 @@ US_STOCKS = {
     "AMC ENTERTAINMENT": "AMC"
 }
 
+# Common Indian Brand Names vs Listed Names (Manual List)
+INDIAN_ALIAS_STOCKS = {
+    "GROWW": "GROWW",
+    "PAYTM": "PAYTM",
+    "ZOMATO": "ZOMATO",
+    "NAUKRI": "NAUKRI",
+    "POLICYBAZAAR": "POLICYBZR",
+    "NYKAA": "NYKAA",
+    "DELHIVERY": "DELHIVERY",
+    "LENSKART": "LENSKART", # Unlisted but good to handle if it ever lists or for similar names
+    "OLA ELECTRIC": "OLAELEC",
+    "MAMAARTH": "HONASA",
+    "HONASA": "HONASA",
+    "URBAN COMPANY": "URBAN",
+    "BOAT": "BOAT",
+    "SWIGGY": "SWIGGY"
+}
+
 def fuzzy_match_company(query):
     """Return the best matching symbol for a company name query.
-    Checks US stocks first, then NSE.
+    Checks US stocks first, then Indian Aliases, then NSE.
     """
     query_upper = query.upper()
     
@@ -75,7 +93,15 @@ def fuzzy_match_company(query):
     if us_matches:
         return f"{US_STOCKS[us_matches[0]]}:NASDAQ"
 
-    # 2. Check NSE Stocks
+    # 2. Check Indian Aliases
+    if query_upper in INDIAN_ALIAS_STOCKS:
+        return f"{INDIAN_ALIAS_STOCKS[query_upper]}:NSE"
+        
+    alias_matches = difflib.get_close_matches(query_upper, INDIAN_ALIAS_STOCKS.keys(), n=1, cutoff=0.8)
+    if alias_matches:
+        return f"{INDIAN_ALIAS_STOCKS[alias_matches[0]]}:NSE"
+
+    # 3. Check NSE Stocks
     if query_upper in NSE_NAME_TO_SYMBOL:
         return f"{NSE_NAME_TO_SYMBOL[query_upper]}:NSE"
         
@@ -84,7 +110,7 @@ def fuzzy_match_company(query):
     if matches:
         return f"{NSE_NAME_TO_SYMBOL[matches[0]]}:NSE"
 
-    # 3. Smart Token Match (NSE)
+    # 4. Smart Token Match (NSE)
     stopwords = {'LTD', 'LIMITED', 'PVT', 'PRIVATE', 'INC', 'CORP', 'CORPORATION', 'COMPANY', 'SERVICES', 'FINANCE', 'FINANCIAL', 'TECHNOLOGIES'}
     query_tokens = [t for t in query_upper.split() if t not in stopwords or len(query_upper.split()) == 1]
     
@@ -123,6 +149,12 @@ def search_stocks(query):
         if query_upper in name or query_upper in sym:
             results.append({"symbol": f"{sym}:NASDAQ", "name": name})
             if len(results) >= 3: break
+            
+    # Search Indian Aliases
+    for name, sym in INDIAN_ALIAS_STOCKS.items():
+        if query_upper in name or query_upper in sym:
+            results.append({"symbol": f"{sym}:NSE", "name": name})
+            if len(results) >= 5: break
             
     # Search NSE Stocks
     count = 0
