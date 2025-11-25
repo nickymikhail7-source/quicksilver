@@ -327,7 +327,12 @@ class handler(BaseHTTPRequestHandler):
                 elif "P/E ratio" in text:
                     val_div = row.find("div", class_="P6K39c")
                     if val_div:
-                        pe_ratio = val_div.get_text(strip=True)
+                        pe_val = val_div.get_text(strip=True)
+                        # If Google returns '-', treat as N/A (common for loss-making companies)
+                        if pe_val == '-':
+                            pe_ratio = "-" # Keep as dash to indicate no ratio available
+                        else:
+                            pe_ratio = pe_val
 
             return {
                 "symbol": symbol,

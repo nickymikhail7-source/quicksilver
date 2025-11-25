@@ -1,6 +1,6 @@
 from bs4 import BeautifulSoup
 
-with open('/tmp/aapl_finance.html', 'r') as f:
+with open('/tmp/swiggy_finance.html', 'r') as f:
     html = f.read()
 
 soup = BeautifulSoup(html, 'html.parser')
