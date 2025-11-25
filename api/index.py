@@ -279,14 +279,32 @@ class handler(BaseHTTPRequestHandler):
                 is_positive = '+' in change or 'Up' in str(change_div)
             
             # Return data dict instead of sending response
+            # Extract Market Cap and P/E Ratio
+            mkt_cap = "N/A"
+            pe_ratio = "N/A"
+            
+            # Iterate through stats rows
+            # Class 'gyFHrc' is the container for each stat row (Label + Value)
+            stats_rows = soup.find_all("div", class_="gyFHrc")
+            for row in stats_rows:
+                text = row.get_text()
+                if "Market cap" in text:
+                    val_div = row.find("div", class_="P6K39c")
+                    if val_div:
+                        mkt_cap = val_div.get_text(strip=True)
+                elif "P/E ratio" in text:
+                    val_div = row.find("div", class_="P6K39c")
+                    if val_div:
+                        pe_ratio = val_div.get_text(strip=True)
+
             return {
-                'symbol': symbol,
-                'name': name,
-                'price': price,
-                'change': change,
-                'isPositive': is_positive,
-                'mktCap': 'N/A',
-                'pe': 'N/A'
+                "symbol": symbol,
+                "name": name,
+                "price": price,
+                "change": change,
+                "isPositive": is_positive,
+                "mktCap": mkt_cap,
+                "pe": pe_ratio
             }
 
         except Exception as e:
